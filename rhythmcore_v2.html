@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>RHYTHM CORE</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --red:  #ff0033;
+  --cyan: #00e5ff;
+  --dark: #03080f;
+  --mid:  #0a1628;
+}
+body {
+  background: var(--dark);
+  overflow: hidden;
+  font-family: 'Orbitron', sans-serif;
+  color: #fff;
+  touch-action: none;
+}
+#canvas { display:block; position:fixed; top:0; left:0; width:100%; height:100%; }
+
+/* ── SCANLINES ── */
+.scanlines {
+  position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,229,255,0.012) 2px,rgba(0,229,255,0.012) 4px);
+}
+
+/* ── INTRO ── */
+#intro-screen {
+  position:fixed; inset:0; background:var(--dark);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  z-index:200;
+}
+#intro-eyebrow {
+  font-family:'Share Tech Mono',monospace; font-size:11px; letter-spacing:8px;
+  color:var(--red); margin-bottom:20px; animation:blink-in 0.5s ease forwards;
+}
+#intro-title {
+  font-size:clamp(40px,10vw,90px); font-weight:900; letter-spacing:10px; color:#fff;
+  text-shadow:0 0 30px var(--red),0 0 70px rgba(255,0,51,0.4),0 0 120px rgba(255,0,51,0.2);
+  line-height:1; margin-bottom:6px; animation:flicker 6s infinite;
+}
+#intro-subtitle {
+  font-family:'Share Tech Mono',monospace; font-size:clamp(10px,2vw,14px);
+  letter-spacing:5px; color:var(--cyan); opacity:0.7; margin-bottom:56px;
+}
+#enter-btn {
+  padding:18px 60px; border:2px solid var(--red); background:transparent;
+  color:var(--red); font-family:'Orbitron',sans-serif; font-size:15px; font-weight:700;
+  letter-spacing:8px; cursor:pointer; position:relative; transition:all 0.15s;
+  animation:pulse-glow 2s ease-in-out infinite;
+}
+#enter-btn::before { content:''; position:absolute; inset:-6px; border:1px solid rgba(255,0,51,0.25); }
+#enter-btn:hover { background:rgba(255,0,51,0.15); box-shadow:0 0 40px rgba(255,0,51,0.6); letter-spacing:10px; }
+
+/* ── SONG SELECT ── */
+#select-screen {
+  position:fixed; inset:0; background:var(--dark);
+  display:none; flex-direction:column; align-items:center; justify-content:center;
+  z-index:200;
+}
+#select-title {
+  font-family:'Share Tech Mono',monospace; font-size:11px; letter-spacing:8px;
+  color:var(--red); margin-bottom:48px;
+}
+#carousel-wrap {
+  position:relative; width:100%; height:260px;
+  display:flex; align-items:center; justify-content:center;
+  overflow:hidden;
+}
+.song-card {
+  position:absolute; width:220px; height:220px;
+  border:1px solid rgba(255,0,51,0.25); background:rgba(10,22,40,0.8);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  cursor:pointer; transition:all 0.35s cubic-bezier(.4,0,.2,1);
+  padding:20px; text-align:center; user-select:none;
+}
+.song-card.active {
+  border-color:var(--red); border-width:2px;
+  box-shadow:0 0 40px rgba(255,0,51,0.4), inset 0 0 30px rgba(255,0,51,0.06);
+}
+.card-num {
+  font-family:'Share Tech Mono',monospace; font-size:9px; letter-spacing:4px;
+  color:rgba(255,0,51,0.5); margin-bottom:12px;
+}
+.card-art {
+  width:80px; height:80px; margin-bottom:14px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:36px; border:1px solid rgba(255,0,51,0.2); position:relative;
+  overflow:hidden;
+}
+.card-art::before {
+  content:''; position:absolute; inset:0;
+  background:repeating-linear-gradient(45deg,transparent,transparent 4px,rgba(255,0,51,0.04) 4px,rgba(255,0,51,0.04) 8px);
+}
+.card-title {
+  font-size:12px; font-weight:700; letter-spacing:2px;
+  color:#fff; margin-bottom:4px; line-height:1.3;
+}
+.card-artist {
+  font-family:'Share Tech Mono',monospace; font-size:9px; letter-spacing:2px;
+  color:rgba(255,255,255,0.35); margin-bottom:10px;
+}
+.card-meta {
+  display:flex; gap:10px; align-items:center;
+  font-family:'Share Tech Mono',monospace; font-size:9px; letter-spacing:2px;
+}
+.card-bpm { color:var(--cyan); opacity:0.7; }
+.card-diff { color:var(--red); }
+
+#select-nav {
+  margin-top:40px; display:flex; gap:24px; align-items:center;
+}
+.nav-arrow {
+  width:48px; height:48px; border:1px solid rgba(255,255,255,0.15);
+  background:transparent; color:rgba(255,255,255,0.4); font-size:20px;
+  cursor:pointer; display:flex; align-items:center; justify-content:center;
+  transition:all 0.15s; font-family:'Share Tech Mono',monospace;
+}
+.nav-arrow:hover { border-color:var(--red); color:var(--red); }
+
+#select-confirm {
+  padding:14px 48px; border:2px solid var(--cyan); background:transparent;
+  color:var(--cyan); font-family:'Orbitron',sans-serif; font-size:12px; font-weight:700;
+  letter-spacing:6px; cursor:pointer; transition:all 0.15s;
+}
+#select-confirm:hover { background:rgba(0,229,255,0.1); box-shadow:0 0 30px rgba(0,229,255,0.4); }
+
+#select-dots {
+  margin-top:20px; display:flex; gap:8px;
+}
+.sel-dot {
+  width:6px; height:6px; border-radius:50%;
+  background:rgba(255,0,51,0.25); transition:background 0.2s;
+}
+.sel-dot.active { background:var(--red); }
+
+#select-hint {
+  margin-top:16px; font-family:'Share Tech Mono',monospace; font-size:9px;
+  letter-spacing:3px; color:rgba(255,255,255,0.2);
+}
+
+/* ── LOADING ── */
+#load-overlay {
+  position:fixed; inset:0; background:rgba(3,8,15,0.97);
+  display:none; align-items:center; justify-content:center;
+  z-index:300; flex-direction:column; gap:16px;
+}
+#load-song-name {
+  font-size:14px; font-weight:700; letter-spacing:4px; color:#fff; margin-bottom:8px;
+}
+#load-text {
+  font-family:'Share Tech Mono',monospace; font-size:11px;
+  letter-spacing:4px; color:var(--red);
+}
+#load-bar-wrap { width:240px; height:2px; background:rgba(255,0,51,0.2); }
+#load-bar { height:100%; background:var(--red); box-shadow:0 0 8px var(--red); width:0%; transition:width 0.15s; }
+#load-detect {
+  font-family:'Share Tech Mono',monospace; font-size:10px;
+  letter-spacing:3px; color:rgba(0,229,255,0.6); margin-top:4px; min-height:16px;
+}
+
+/* ── HUD ── */
+#hud { position:fixed; inset:0; pointer-events:none; z-index:10; }
+#score-block { position:absolute; top:28px; right:32px; text-align:right; }
+.hud-label {
+  font-family:'Share Tech Mono',monospace; font-size:10px; letter-spacing:4px;
+  color:var(--red); opacity:0.7; margin-bottom:2px;
+}
+#score-val {
+  font-size:clamp(32px,5vw,48px); font-weight:900; color:#fff;
+  text-shadow:0 0 20px rgba(255,0,51,0.5); line-height:1; font-variant-numeric:tabular-nums;
+}
+#combo-block { position:absolute; top:28px; left:32px; }
+#combo-val {
+  font-size:clamp(32px,5vw,48px); font-weight:900; color:#fff;
+  text-shadow:0 0 20px rgba(0,229,255,0.5); line-height:1; font-variant-numeric:tabular-nums;
+}
+#mult-block { position:absolute; top:50%; left:50%; transform:translate(-50%,-120%); text-align:center; }
+#mult-val { font-size:20px; font-weight:700; color:var(--red); opacity:0.6; text-shadow:0 0 12px var(--red); }
+#judge-block {
+  position:absolute; bottom:34%; left:50%; transform:translateX(-50%);
+  text-align:center; font-size:clamp(16px,3vw,24px); font-weight:700;
+  letter-spacing:6px; white-space:nowrap; transition:opacity 0.08s;
+}
+#bpm-badge {
+  position:absolute; top:28px; left:50%; transform:translateX(-50%);
+  font-family:'Share Tech Mono',monospace; font-size:10px; letter-spacing:4px;
+  color:rgba(0,229,255,0.45);
+}
+
+/* ── SONG INFO ── */
+#song-info { position:fixed; bottom:116px; left:28px; z-index:10; pointer-events:none; }
+#song-title-hud { font-family:'Share Tech Mono',monospace; font-size:11px; letter-spacing:3px; color:var(--red); opacity:0.85; }
+#song-artist-hud { font-family:'Share Tech Mono',monospace; font-size:9px; letter-spacing:2px; color:rgba(255,255,255,0.35); margin-top:3px; }
+#song-bpm-hud { font-family:'Share Tech Mono',monospace; font-size:9px; letter-spacing:2px; color:rgba(0,229,255,0.35); margin-top:2px; }
+
+/* ── LANE BUTTONS ── */
+#btn-row {
+  position:fixed; bottom:28px; left:50%; transform:translateX(-50%);
+  display:flex; gap:10px; z-index:20; pointer-events:auto;
+}
+.lane-btn {
+  width:68px; height:68px; border:2px solid var(--red); background:rgba(255,0,51,0.08);
+  color:var(--red); font-family:'Orbitron',sans-serif; font-size:15px; font-weight:700;
+  letter-spacing:1px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  transition:all 0.06s; position:relative; user-select:none; -webkit-user-select:none;
+}
+.lane-btn::after { content:''; position:absolute; inset:-4px; border:1px solid rgba(255,0,51,0.2); pointer-events:none; }
+
+/* ── PROGRESS ── */
+#progress-wrap { position:fixed; bottom:0; left:0; right:0; height:3px; background:rgba(255,0,51,0.1); z-index:20; }
+#progress-fill {
+  height:100%; width:0%;
+  background:linear-gradient(90deg,var(--red),#ff6600);
+  box-shadow:0 0 10px var(--red),0 0 20px rgba(255,0,51,0.4);
+  transition:width 0.4s linear;
+}
+
+/* ── RESULT ── */
+#result-screen {
+  position:fixed; inset:0; background:rgba(3,8,15,0.96);
+  display:none; flex-direction:column; align-items:center; justify-content:center; z-index:200;
+}
+#result-title { font-size:clamp(28px,6vw,52px); font-weight:900; letter-spacing:10px; color:var(--red); text-shadow:0 0 30px rgba(255,0,51,0.5); margin-bottom:12px; }
+#result-grade { font-size:clamp(48px,10vw,96px); font-weight:900; color:#fff; text-shadow:0 0 40px var(--cyan),0 0 80px rgba(0,229,255,0.4); margin-bottom:40px; }
+#result-bpm { font-family:'Share Tech Mono',monospace; font-size:10px; letter-spacing:4px; color:rgba(0,229,255,0.5); margin-bottom:20px; margin-top:-30px; }
+.result-table { width:min(340px,85vw); margin-bottom:40px; }
+.result-row { display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid rgba(255,0,51,0.15); }
+.result-row:last-child { border-bottom:none; }
+.rl { font-family:'Share Tech Mono',monospace; font-size:10px; letter-spacing:4px; color:rgba(255,255,255,0.45); }
+.rv { font-size:20px; font-weight:700; color:#fff; font-variant-numeric:tabular-nums; }
+.result-btns { display:flex; gap:16px; }
+#retry-btn, #back-btn {
+  padding:14px 36px; border:2px solid var(--red); background:transparent;
+  color:var(--red); font-family:'Orbitron',sans-serif; font-size:12px; font-weight:700;
+  letter-spacing:6px; cursor:pointer; transition:all 0.15s;
+}
+#back-btn { border-color:rgba(255,255,255,0.2); color:rgba(255,255,255,0.4); }
+#retry-btn:hover { background:rgba(255,0,51,0.15); box-shadow:0 0 30px rgba(255,0,51,0.4); }
+#back-btn:hover { border-color:rgba(255,255,255,0.5); color:rgba(255,255,255,0.7); }
+
+/* ── KEYFRAMES ── */
+@keyframes flicker { 0%,95%,100%{opacity:1} 96%{opacity:.75} 97%{opacity:1} 98%{opacity:.85} }
+@keyframes pulse-glow { 0%,100%{box-shadow:0 0 20px rgba(255,0,51,0.3)} 50%{box-shadow:0 0 50px rgba(255,0,51,0.75)} }
+@keyframes blink-in { from{opacity:0;letter-spacing:12px} to{opacity:1;letter-spacing:8px} }
+@keyframes card-in { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+</style>
+</head>
+<body>
+
+<!-- INTRO -->
+<div id="intro-screen">
+  <div class="scanlines"></div>
+  <div id="intro-eyebrow">// RHYTHM CORE //</div>
+  <div id="intro-title">RHYTHM CORE</div>
+  <div id="intro-subtitle">SELECT YOUR TRACK</div>
+  <button id="enter-btn">ENTER</button>
+</div>
+
+<!-- SONG SELECT -->
+<div id="select-screen">
+  <div class="scanlines"></div>
+  <div id="select-title">// SELECT TRACK //</div>
+  <div id="carousel-wrap"></div>
+  <div id="select-nav">
+    <button class="nav-arrow" id="nav-prev">◀</button>
+    <button id="select-confirm">PLAY</button>
+    <button class="nav-arrow" id="nav-next">▶</button>
+  </div>
+  <div id="select-dots"></div>
+  <div id="select-hint">← → ARROW KEYS · ENTER TO PLAY</div>
+</div>
+
+<!-- LOADING -->
+<div id="load-overlay">
+  <div id="load-song-name"></div>
+  <div id="load-text">LOADING AUDIO...</div>
+  <div id="load-bar-wrap"><div id="load-bar"></div></div>
+  <div id="load-detect"></div>
+</div>
+
+<!-- RESULT -->
+<div id="result-screen">
+  <div class="scanlines"></div>
+  <div id="result-title">STAGE CLEAR</div>
+  <div id="result-grade">—</div>
+  <div id="result-bpm"></div>
+  <div class="result-table">
+    <div class="result-row"><span class="rl">SCORE</span><span class="rv" id="r-score">000000</span></div>
+    <div class="result-row"><span class="rl">MAX COMBO</span><span class="rv" id="r-combo">0</span></div>
+    <div class="result-row"><span class="rl">PERFECT</span><span class="rv" id="r-perfect">0</span></div>
+    <div class="result-row"><span class="rl">GOOD</span><span class="rv" id="r-good">0</span></div>
+    <div class="result-row"><span class="rl">MISS</span><span class="rv" id="r-miss">0</span></div>
+  </div>
+  <div class="result-btns">
+    <button id="back-btn">BACK</button>
+    <button id="retry-btn">RETRY</button>
+  </div>
+</div>
+
+<!-- HUD -->
+<div id="hud">
+  <div id="combo-block"><div class="hud-label">COMBO</div><div id="combo-val">0</div></div>
+  <div id="score-block"><div class="hud-label">SCORE</div><div id="score-val">000000</div></div>
+  <div id="mult-block"><div id="mult-val">×1</div></div>
+  <div id="bpm-badge"></div>
+  <div id="judge-block" style="opacity:0;color:#fff;"></div>
+</div>
+
+<div id="song-info">
+  <div id="song-title-hud"></div>
+  <div id="song-artist-hud"></div>
+  <div id="song-bpm-hud"></div>
+</div>
+
+<!-- LANE BUTTONS -->
+<div id="btn-row">
+  <div class="lane-btn" id="lb0" style="border-color:#ff2244;color:#ff2244;box-shadow:0 0 14px rgba(255,34,68,0.35),inset 0 0 14px rgba(255,34,68,0.08)">A</div>
+  <div class="lane-btn" id="lb1" style="border-color:#00e5ff;color:#00e5ff;box-shadow:0 0 14px rgba(0,229,255,0.35),inset 0 0 14px rgba(0,229,255,0.08)">S</div>
+  <div class="lane-btn" id="lb2" style="border-color:#aaff00;color:#aaff00;box-shadow:0 0 14px rgba(170,255,0,0.35),inset 0 0 14px rgba(170,255,0,0.08)">D</div>
+  <div class="lane-btn" id="lb3" style="border-color:#ff44cc;color:#ff44cc;box-shadow:0 0 14px rgba(255,68,204,0.35),inset 0 0 14px rgba(255,68,204,0.08)">F</div>
+</div>
+
+<div id="progress-wrap"><div id="progress-fill"></div></div>
+<canvas id="canvas"></canvas>
+
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+// ═══════════════════════════════════════════════════════
+//  SONG LIBRARY
+//  ─────────────────────────────────────────────────────
+//  To add a new song:
+//    1. Drop the audio file into the songs/ folder
+//    2. Add an entry below with its metadata
+//    3. Set difficulty 1-5 (controls note density)
+//    4. Set bpmHint + offsetHint (will be refined by auto-detect)
+//    5. Optionally set chart: [...] for hand-authored notes
+//       or leave chart: null to use the auto-generator
+// ═══════════════════════════════════════════════════════
+const SONG_LIBRARY = [
+  {
+    id: 'fearless_funk',
+    title: 'FEARLESS FUNK',
+    artist: 'DR MØB × CHRIS LINTON',
+    src: 'songs/fearless_funk.mp3',
+    emoji: '🎸',
+    bpmHint: 130,
+    offsetHint: 0.85,
+    duration: 213,
+    difficulty: 3,
+    chart: null,   // null = auto-generate from BPM
+  },
+  {
+    id: 'placeholder_2',
+    title: 'TRACK TWO',
+    artist: 'ARTIST NAME',
+    src: 'songs/track2.mp3',
+    emoji: '🎹',
+    bpmHint: 128,
+    offsetHint: 0.5,
+    duration: 180,
+    difficulty: 2,
+    chart: null,
+  },
+  {
+    id: 'placeholder_3',
+    title: 'TRACK THREE',
+    artist: 'ARTIST NAME',
+    src: 'songs/track3.mp3',
+    emoji: '🔊',
+    bpmHint: 140,
+    offsetHint: 0.4,
+    duration: 200,
+    difficulty: 4,
+    chart: null,
+  },
+];
+
+// Active song slot — populated when a song is selected & loaded
+let activeSong = null;   // reference to the SONG_LIBRARY entry
+let detectedBPM = null;  // from beat detector (overrides bpmHint if confident)
+let detectedOffset = null;
+
+// ═══════════════════════════════════════════════════════
+//  ENGINE CONSTANTS  (song-independent)
+// ═══════════════════════════════════════════════════════
+const SPEED      = 8;
+const HIT_Z      = 3.6;
+const SPAWN_Z    = -22;
+const TRAVEL     = HIT_Z - SPAWN_Z;
+const LOOKAHEAD  = TRAVEL / SPEED;
+const LANE_X     = [-1.65, -0.55, 0.55, 1.65];
+const NOTE_Y     = 0.15;
+const MISS_GRACE = 0.25;
+const WINDOWS    = { perfect: 0.065, good: 0.130, ok: 0.210 };
+const LANE_COLORS     = [0xff2244, 0x00e5ff, 0xaaff00, 0xff44cc];
+const LANE_COLORS_CSS = ['#ff2244', '#00e5ff', '#aaff00', '#ff44cc'];
+
+// ═══════════════════════════════════════════════════════
+//  BEAT DETECTOR
+//  Two-pass: energy-flux onset detection → autocorrelation BPM
+// ═══════════════════════════════════════════════════════
+async function detectBeat(audioBuffer, onProgress) {
+  const sr       = audioBuffer.sampleRate;
+  const raw      = audioBuffer.getChannelData(0);
+  const HOP      = 512;
+  const WIN      = 1024;
+  const numFrames = Math.floor((raw.length - WIN) / HOP);
+
+  // ── PASS 1: spectral flux onset curve ──
+  onProgress(0.1, 'ANALYSING ENERGY FLUX...');
+  const onset = new Float32Array(numFrames);
+  let prevMag = new Float32Array(WIN / 2);
+
+  for (let f = 0; f < numFrames; f++) {
+    const start = f * HOP;
+    // simple magnitude spectrum via real part only (fast approximation)
+    let flux = 0;
+    for (let k = 0; k < WIN / 2; k++) {
+      const mag = Math.abs(raw[start + k]);
+      const diff = mag - prevMag[k];
+      if (diff > 0) flux += diff;
+      prevMag[k] = mag;
+    }
+    onset[f] = flux;
+    if (f % 5000 === 0) onProgress(0.1 + (f / numFrames) * 0.4, 'ANALYSING ENERGY FLUX...');
+  }
+
+  // ── Normalise onset curve ──
+  let maxO = 0;
+  for (let i = 0; i < onset.length; i++) if (onset[i] > maxO) maxO = onset[i];
+  if (maxO > 0) for (let i = 0; i < onset.length; i++) onset[i] /= maxO;
+
+  // ── PASS 2: autocorrelation to find period ──
+  onProgress(0.55, 'CORRELATING BEAT PERIOD...');
+  // BPM range 60–200 → period range in frames
+  const minPeriod = Math.round((60 / 200) * sr / HOP);
+  const maxPeriod = Math.round((60 / 60)  * sr / HOP);
+  let bestPeriod = minPeriod, bestCorr = -Infinity;
+
+  for (let p = minPeriod; p <= maxPeriod; p++) {
+    let corr = 0;
+    for (let i = 0; i < onset.length - p; i++) corr += onset[i] * onset[i + p];
+    if (corr > bestCorr) { bestCorr = corr; bestPeriod = p; }
+  }
+
+  const rawBPM = (sr / HOP) / bestPeriod * 60;
+  onProgress(0.75, 'LOCKING TEMPO...');
+
+  // Snap to musically sensible BPM (round to nearest 0.5)
+  let bpm = Math.round(rawBPM * 2) / 2;
+  // Halve or double if too extreme
+  if (bpm > 200) bpm /= 2;
+  if (bpm < 60)  bpm *= 2;
+
+  // ── PASS 3: find first beat onset (offset) ──
+  onProgress(0.85, 'FINDING FIRST BEAT...');
+  const beatFrames = (60 / bpm) * sr / HOP;
+  const searchFrames = Math.min(numFrames, Math.round(beatFrames * 8));
+  let peakVal = -1, peakFrame = 0;
+  for (let i = 0; i < searchFrames; i++) {
+    if (onset[i] > peakVal) { peakVal = onset[i]; peakFrame = i; }
+  }
+  const offsetSec = (peakFrame * HOP) / sr;
+
+  onProgress(1.0, 'DONE');
+  return { bpm, offset: offsetSec, confidence: Math.min(1, bestCorr / (onset.length * 0.15)) };
+}
+
+// ═══════════════════════════════════════════════════════
+//  CHART GENERATOR
+//  Builds a chart from (bpm, offset, difficulty, duration)
+//  difficulty 1=easy…5=expert
+// ═══════════════════════════════════════════════════════
+function buildChart(bpm, offset, difficulty, duration) {
+  const b     = 60 / bpm;
+  const notes = [];
+  const push  = (t, lane) => { if (t > 0 && t < duration - 1) notes.push({ time: +t.toFixed(4), lane, hit:false, spawned:false, missed:false }); };
+  const pat   = (startBeat, arr) => arr.forEach(([d, l]) => push(offset + (startBeat + d) * b, l));
+  const note  = (beatIdx, lane) => push(offset + beatIdx * b, lane);
+
+  // Density gates per difficulty
+  const useEighths  = difficulty >= 2;
+  const useSixteenths = difficulty >= 4;
+  const densePeak   = difficulty >= 3; // extra syncopations in chorus
+
+  // ── INTRO — always quarter notes (beats 0–7) ──
+  [0,1,2,3,2,1,0,2].forEach((l, i) => note(i, l));
+
+  // ── VERSE A patterns ──
+  const vA_quarter = [
+    [0,0],[1,2],[2,1],[3,3],[4,2],[5,0],[6,3],[7,1],
+    [8,3],[9,1],[10,2],[11,0],[12,1],[13,3],[14,0],[15,2]
+  ];
+  const vA_eighth = [
+    [0,0],[0.5,2],[1,1],[2,3],[2.5,1],[3,2],
+    [4,0],[4.5,3],[5,1],[6,3],[7,2],
+    [8,1],[8.5,3],[9,0],[10,2],[11,1],
+    [12,3],[13,0],[13.5,2],[14,1],[15,3]
+  ];
+  const vA = useEighths ? vA_eighth : vA_quarter;
+  for (let rep = 0; rep < 4; rep++) pat(8 + rep * 16, vA);
+
+  // ── PRE-CHORUS BUILD (beats 72–87) ──
+  const build_easy = [
+    [0,0],[1,2],[2,1],[3,3],[4,3],[5,1],[6,2],[7,0],
+    [8,0],[9,2],[10,1],[11,3],[12,3],[13,1],[14,0],[15,2]
+  ];
+  const build_hard = [
+    [0,0],[1,2],[2,1],[3,3],[4,3],[5,1],[6,2],[7,0],
+    [8,0],[8.5,1],[9,2],[9.5,3],[10,3],[10.5,2],[11,1],[11.5,0],
+    [12,0],[12.25,2],[12.5,1],[12.75,3],
+    [13,3],[13.25,1],[13.5,2],[13.75,0],
+    [14,0],[14.5,3],[15,2],[15.5,1]
+  ];
+  pat(72, densePeak ? build_hard : build_easy);
+
+  // ── CHORUS (beats 88–151, 2 reps × 32 beats) ──
+  const ch_eighth = [
+    [0,0],[0.5,2],[1,1],[2,3],[2.5,1],[3,2],
+    [4,0],[4.5,3],[5,1],[6,2],[7,3],[7.5,1],
+    [8,0],[9,2],[9.5,0],[10,1],[10.5,3],[11,2],
+    [12,3],[12.5,1],[13,0],[14,3],[14.5,1],[15,2],[15.5,0]
+  ];
+  const ch_sixteen = [
+    [0,0],[0.25,2],[0.5,1],[1,3],[1.5,2],[2,0],[2.5,1],
+    [3,2],[3.5,3],[4,1],[4.5,3],[5,0],[5.5,2],
+    [6,2],[6.5,0],[7,3],[7.5,1],
+    [8,0],[8.25,2],[8.5,1],[9,3],[9.5,1],[10,2],[11,0],[11.5,3],
+    [12,1],[12.5,2],[13,0],[13.25,3],[13.5,1],
+    [14,2],[14.5,0],[15,3],[15.5,1]
+  ];
+  const ch = useSixteenths ? ch_sixteen : ch_eighth;
+  for (let rep = 0; rep < 2; rep++) {
+    for (let bar = 0; bar < 2; bar++) pat(88 + rep * 32 + bar * 16, ch);
+  }
+
+  // ── BREAK (beats 152–167, sparse) ──
+  const brk = [
+    [0,2],[1,0],[2,3],[3,1],[4,0],[5,3],[6,2],[7,1],
+    [8,2],[9,0],[10,3],[11,1],[12,0],[12.5,2],[13,3],[14,1],[15,0]
+  ];
+  pat(152, brk);
+
+  // ── VERSE B ──
+  const vB_quarter = [
+    [0,1],[1,0],[2,3],[3,2],[4,0],[5,3],[6,1],[7,2],
+    [8,2],[9,3],[10,0],[11,1],[12,3],[13,0],[14,2],[15,1]
+  ];
+  const vB_eighth = [
+    [0,2],[0.5,3],[1,0],[2,1],[3,3],[4,0],[4.5,2],
+    [5,1],[5.5,0],[6,3],[7,2],
+    [8,1],[9,0],[9.5,3],[10,2],[11,1],
+    [12,0],[12.5,3],[13,1],[14,2],[15,1]
+  ];
+  const vB = useEighths ? vB_eighth : vB_quarter;
+  for (let rep = 0; rep < 3; rep++) pat(168 + rep * 16, vB);
+
+  // ── PRE-CHORUS 2 (beats 216–231) ──
+  const build2 = densePeak ? [
+    [0,3],[1,2],[2,1],[3,0],[4,0],[5,1],[6,2],[7,3],
+    [8,2],[8.5,0],[9,3],[9.5,1],[10,1],[11,3],[11.5,0],
+    [12,2],[12.25,0],[12.5,3],[12.75,1],
+    [13,1],[13.25,3],[13.5,0],[13.75,2],[14,2],[14.5,0],[15,3],[15.5,1]
+  ] : [
+    [0,3],[1,2],[2,1],[3,0],[4,0],[5,1],[6,2],[7,3],
+    [8,2],[9,0],[10,3],[11,1],[12,1],[13,3],[14,0],[15,2]
+  ];
+  pat(216, build2);
+
+  // ── FINAL CHORUS (beats 232–327, 3 reps × 32 beats) ──
+  const chF_hard = [
+    [0,0],[0.25,2],[0.5,1],[1,3],[1.5,2],[2,0],[2.5,1],[3,2],[3.5,3],
+    [4,1],[4.5,3],[5,0],[5.5,2],[6,2],[6.5,0],[7,3],[7.5,1],
+    [8,0],[8.25,2],[8.5,1],[9,3],[9.5,1],[10,2],[11,0],[11.5,3],
+    [12,1],[12.5,2],[13,0],[13.25,3],[13.5,1],[14,2],[14.5,0],[15,3],[15.5,1]
+  ];
+  const chF_med = [
+    [0,0],[0.5,2],[1,1],[2,3],[2.5,2],[3,0],[4,1],[4.5,3],
+    [5,0],[5.5,2],[6,2],[7,3],[7.5,1],
+    [8,0],[8.5,2],[9,3],[9.5,1],[10,2],[11,0],[11.5,3],
+    [12,1],[12.5,2],[13,0],[14,2],[14.5,0],[15,3]
+  ];
+  const chF = useSixteenths ? chF_hard : chF_med;
+  for (let rep = 0; rep < 3; rep++) {
+    for (let bar = 0; bar < 2; bar++) pat(232 + rep * 32 + bar * 16, chF);
+  }
+
+  // ── OUTRO (beats 328–348) ──
+  const outro = [
+    [0,0],[1,1],[2,2],[3,3],[4,3],[5,2],[6,1],[7,0],
+    [8,0],[9,2],[10,1],[11,3],[12,2],[13,0]
+  ];
+  pat(328, outro);
+  [0,2,1,3,2,0].forEach((l, i) => note(342 + i, l));
+
+  return notes.sort((a, z) => a.time - z.time);
+}
+
+// ═══════════════════════════════════════════════════════
+//  THREE.JS SCENE
+// ═══════════════════════════════════════════════════════
+const canvas   = document.getElementById('canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:false });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setClearColor(0x03080f);
+
+const scene  = new THREE.Scene();
+scene.fog    = new THREE.FogExp2(0x03080f, 0.032);
+
+const camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.1, 120);
+camera.position.set(0, 5.8, 9.2);
+camera.lookAt(0, 0, -5);
+
+// Highway
+const hwMesh = new THREE.Mesh(
+  new THREE.PlaneGeometry(4.6, 50),
+  new THREE.MeshBasicMaterial({ color:0x000d20, transparent:true, opacity:0.92, side:THREE.DoubleSide })
+);
+hwMesh.rotation.x = -Math.PI / 2;
+hwMesh.position.set(0, -0.01, HIT_Z - 25);
+scene.add(hwMesh);
+
+// Lane dividers
+const lDivMat = new THREE.LineBasicMaterial({ color:0x00e5ff, transparent:true, opacity:0.22 });
+[-2.3,-1.1,0,1.1,2.3].forEach(x => {
+  const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x,0.001,HIT_Z+0.8),new THREE.Vector3(x,0.001,SPAWN_Z-2)]);
+  scene.add(new THREE.Line(g, lDivMat));
+});
+
+// Scrolling grid
+const H_COUNT   = 24;
+const H_SPACING = TRAVEL / H_COUNT;
+const hLineMat  = new THREE.LineBasicMaterial({ color:0x00e5ff, transparent:true, opacity:0.10 });
+const hLines    = [];
+for (let i = 0; i < H_COUNT; i++) {
+  const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-2.3,0.001,0),new THREE.Vector3(2.3,0.001,0)]);
+  const line = new THREE.Line(g, hLineMat);
+  line.position.z = SPAWN_Z + i * H_SPACING;
+  scene.add(line); hLines.push(line);
+}
+
+// Hit strip
+const stripMat  = new THREE.MeshBasicMaterial({ color:0xff0033, transparent:true, opacity:0.55 });
+const stripMesh = new THREE.Mesh(new THREE.PlaneGeometry(4.6, 0.3), stripMat);
+stripMesh.rotation.x = -Math.PI / 2;
+stripMesh.position.set(0, 0.006, HIT_Z - 0.15);
+scene.add(stripMesh);
+
+// 3D hit buttons
+const BTN_MATS = [];
+LANE_X.forEach((x, i) => {
+  const geo = new THREE.BoxGeometry(0.88, 0.09, 0.55);
+  const col = LANE_COLORS[i];
+  const mat = new THREE.MeshBasicMaterial({ color:col, transparent:true, opacity:0.12 });
+  BTN_MATS.push(mat);
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(x, 0.045, HIT_Z);
+  scene.add(mesh);
+  mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo),
+    new THREE.LineBasicMaterial({ color:col, transparent:true, opacity:0.85 })));
+});
+
+// City silhouettes
+const cityMat = new THREE.LineBasicMaterial({ color:0xff0033, transparent:true, opacity:0.18 });
+[[-5,2,-18],[-6.5,3.5,-16],[-4,4.5,-20],[-7.5,2.5,-14],[5,2,-18],[6.5,3.5,-16],[4,4.5,-20],[7.5,2.5,-14],[-5.5,1.5,-12],[5.5,1.5,-12]].forEach(([x,h,z]) => {
+  const w = 0.8 + Math.random() * 1.2;
+  const geo = new THREE.BoxGeometry(w,h,0.4);
+  const obj = new THREE.LineSegments(new THREE.EdgesGeometry(geo), cityMat);
+  obj.position.set(x, h/2, z); scene.add(obj);
+});
+
+// Side rails
+const railMat = new THREE.LineBasicMaterial({ color:0xff0033, transparent:true, opacity:0.35 });
+[[-2.3,0],[2.3,0],[-2.3,0.5],[2.3,0.5]].forEach(([x,y]) => {
+  const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x,y,HIT_Z),new THREE.Vector3(x*0.35,y*0.3,SPAWN_Z)]);
+  scene.add(new THREE.Line(g, railMat));
+});
+
+// ── Note pool ──
+const POOL_SIZE  = 90;
+const noteGeo    = new THREE.BoxGeometry(0.72, 0.11, 0.34);
+const noteEdgeGeo= new THREE.EdgesGeometry(noteGeo);
+const pool = Array.from({ length: POOL_SIZE }, () => {
+  const mat     = new THREE.MeshBasicMaterial({ color:0xffffff });
+  const edgeMat = new THREE.LineBasicMaterial({ color:0xffffff, transparent:true, opacity:0.6 });
+  const mesh    = new THREE.Mesh(noteGeo, mat);
+  mesh.add(new THREE.LineSegments(noteEdgeGeo, edgeMat));
+  mesh.visible = false; scene.add(mesh);
+  return { mesh, mat, edgeMat, active:false, noteRef:null };
+});
+let poolPtr = 0;
+function poolGet() {
+  for (let i = 0; i < POOL_SIZE; i++) {
+    const idx = (poolPtr + i) % POOL_SIZE;
+    if (!pool[idx].active) { poolPtr = (idx+1)%POOL_SIZE; return pool[idx]; }
+  }
+  return null;
+}
+
+// ── Particles ──
+const PART_COUNT = 48;
+const partGeo    = new THREE.PlaneGeometry(0.07, 0.07);
+const particles  = Array.from({ length: PART_COUNT }, () => {
+  const mat  = new THREE.MeshBasicMaterial({ color:0xff0033, transparent:true, depthWrite:false });
+  const mesh = new THREE.Mesh(partGeo, mat);
+  mesh.visible = false; scene.add(mesh);
+  return { mesh, active:false, vx:0, vy:0, vz:0, life:0 };
+});
+function burstParticles(x, color) {
+  for (let i = 0; i < 10; i++) {
+    const p = particles.find(p => !p.active); if (!p) break;
+    p.active = true; p.mesh.visible = true;
+    p.mesh.material.color.setHex(color); p.mesh.material.opacity = 1;
+    p.mesh.position.set(x, NOTE_Y+0.15, HIT_Z);
+    const angle = (Math.PI*2*i/10) + Math.random()*0.4;
+    const spd = 0.04 + Math.random()*0.07;
+    p.vx = Math.cos(angle)*spd; p.vy = 0.05+Math.random()*0.07;
+    p.vz = (Math.random()-0.5)*0.02; p.life = 1;
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  AUDIO ENGINE
+// ═══════════════════════════════════════════════════════
+let actx = null, audioBuf = null, srcNode = null;
+let songStartTime = 0, songLive = false;
+
+async function loadAudioFromURL(url, onProgress) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const total  = +response.headers.get('content-length') || 0;
+  const reader = response.body.getReader();
+  const chunks = [];
+  let received = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value); received += value.length;
+    if (total > 0) onProgress(received / total * 0.6); // 0→60% for download
+  }
+  const blob      = new Blob(chunks);
+  const arrayBuf  = await blob.arrayBuffer();
+  actx     = actx || new (window.AudioContext || window.webkitAudioContext)();
+  audioBuf = await actx.decodeAudioData(arrayBuf);
+}
+
+function playSong() {
+  if (!actx || !audioBuf) return;
+  if (actx.state === 'suspended') actx.resume();
+  srcNode = actx.createBufferSource();
+  srcNode.buffer = audioBuf;
+  srcNode.connect(actx.destination);
+  srcNode.start(0);
+  songStartTime = actx.currentTime;
+  songLive      = true;
+  srcNode.onended = endGame;
+}
+
+function songTime() {
+  if (!songLive || !actx) return 0;
+  return actx.currentTime - songStartTime;
+}
+
+function stopSong() {
+  if (srcNode) { try { srcNode.stop(); } catch(e) {} srcNode = null; }
+  songLive = false;
+}
+
+// ═══════════════════════════════════════════════════════
+//  SONG SELECT SCREEN
+// ═══════════════════════════════════════════════════════
+let selectedIdx = 0;
+
+function renderCarousel() {
+  const wrap = document.getElementById('carousel-wrap');
+  wrap.innerHTML = '';
+  SONG_LIBRARY.forEach((song, i) => {
+    const card = document.createElement('div');
+    card.className = 'song-card' + (i === selectedIdx ? ' active' : '');
+    const diff = '★'.repeat(song.difficulty) + '☆'.repeat(5 - song.difficulty);
+    card.innerHTML = `
+      <div class="card-num">// ${String(i+1).padStart(2,'0')} //</div>
+      <div class="card-art">${song.emoji}</div>
+      <div class="card-title">${song.title}</div>
+      <div class="card-artist">${song.artist}</div>
+      <div class="card-meta">
+        <span class="card-bpm">${song.bpmHint} BPM</span>
+        <span style="color:rgba(255,255,255,0.15)">|</span>
+        <span class="card-diff">${diff}</span>
+      </div>`;
+
+    const offset = i - selectedIdx;
+    const absOff = Math.abs(offset);
+    card.style.transform = `translateX(${offset * 240}px) scale(${absOff === 0 ? 1 : 0.82})`;
+    card.style.opacity   = absOff === 0 ? '1' : absOff === 1 ? '0.45' : '0.2';
+    card.style.zIndex    = absOff === 0 ? '2' : '1';
+    card.style.filter    = absOff === 0 ? 'none' : 'brightness(0.5)';
+    card.addEventListener('click', () => { selectedIdx = i; renderCarousel(); });
+    wrap.appendChild(card);
+  });
+
+  // Dots
+  const dots = document.getElementById('select-dots');
+  dots.innerHTML = '';
+  SONG_LIBRARY.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'sel-dot' + (i === selectedIdx ? ' active' : '');
+    dots.appendChild(d);
+  });
+}
+
+function showSelectScreen() {
+  document.getElementById('intro-screen').style.display  = 'none';
+  document.getElementById('result-screen').style.display = 'none';
+  document.getElementById('select-screen').style.display = 'flex';
+  renderCarousel();
+  state = 'SELECT';
+}
+
+document.getElementById('enter-btn').addEventListener('click', showSelectScreen);
+
+document.getElementById('nav-prev').addEventListener('click', () => {
+  selectedIdx = (selectedIdx - 1 + SONG_LIBRARY.length) % SONG_LIBRARY.length;
+  renderCarousel();
+});
+document.getElementById('nav-next').addEventListener('click', () => {
+  selectedIdx = (selectedIdx + 1) % SONG_LIBRARY.length;
+  renderCarousel();
+});
+document.getElementById('select-confirm').addEventListener('click', () => confirmSong());
+
+// ═══════════════════════════════════════════════════════
+//  SONG LOADING & BEAT DETECTION FLOW
+// ═══════════════════════════════════════════════════════
+async function confirmSong() {
+  activeSong = SONG_LIBRARY[selectedIdx];
+  const lo = document.getElementById('load-overlay');
+  const lb = document.getElementById('load-bar');
+  const lt = document.getElementById('load-text');
+  const ld = document.getElementById('load-detect');
+
+  document.getElementById('load-song-name').textContent = activeSong.title;
+  lt.textContent = 'LOADING AUDIO...';
+  ld.textContent = '';
+  lb.style.width = '0%';
+  document.getElementById('select-screen').style.display = 'none';
+  lo.style.display = 'flex';
+
+  try {
+    // ── Step 1: Fetch & decode ──
+    await loadAudioFromURL(activeSong.src, p => {
+      lb.style.width = `${Math.round(p * 100)}%`;
+    });
+    lb.style.width = '60%';
+    lt.textContent = 'DETECTING BEAT...';
+
+    // ── Step 2: Beat detection ──
+    const result = await detectBeat(audioBuf, (p, msg) => {
+      lb.style.width = `${Math.round(60 + p * 35)}%`;
+      ld.textContent = msg;
+    });
+
+    lb.style.width = '100%';
+
+    // ── Step 3: Decide BPM + offset ──
+    const CONFIDENCE_THRESHOLD = 0.55;
+    if (result.confidence >= CONFIDENCE_THRESHOLD) {
+      detectedBPM    = result.bpm;
+      detectedOffset = result.offset;
+      ld.textContent = `DETECTED: ${result.bpm.toFixed(1)} BPM  (${(result.confidence*100).toFixed(0)}% CONF)`;
+    } else {
+      // Fall back to manual hint
+      detectedBPM    = activeSong.bpmHint;
+      detectedOffset = activeSong.offsetHint;
+      ld.textContent = `USING HINT: ${activeSong.bpmHint} BPM  (LOW CONF: ${(result.confidence*100).toFixed(0)}%)`;
+    }
+
+    await new Promise(r => setTimeout(r, 800)); // let user read the result
+    lo.style.display = 'none';
+    startGame();
+
+  } catch(err) {
+    lt.textContent = 'FAILED TO LOAD — CHECK songs/ FOLDER';
+    lt.style.color = '#ff0033';
+    lb.style.background = '#ff0033';
+    ld.textContent = err.message;
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  GAME STATE
+// ═══════════════════════════════════════════════════════
+let state    = 'INTRO';
+let score    = 0, combo = 0, maxCombo = 0, mult = 1;
+let stats    = { perfect:0, good:0, ok:0, miss:0 };
+let noteIdx  = 0;
+let liveChart= [];
+let judgeTimer = 0;
+let currentBPM = 130;
+
+const $score    = document.getElementById('score-val');
+const $combo    = document.getElementById('combo-val');
+const $mult     = document.getElementById('mult-val');
+const $judge    = document.getElementById('judge-block');
+const $progress = document.getElementById('progress-fill');
+const lBtns     = [0,1,2,3].map(i => document.getElementById(`lb${i}`));
+
+function calcMult() {
+  mult = combo >= 50 ? 8 : combo >= 20 ? 4 : combo >= 8 ? 2 : 1;
+}
+
+function flash(text, cssColor) {
+  $judge.textContent = text;
+  $judge.style.color = cssColor;
+  $judge.style.textShadow = `0 0 20px ${cssColor}`;
+  $judge.style.opacity = '1';
+  judgeTimer = 0.55;
+}
+
+function onHit(quality, laneX, lane) {
+  const pts = quality === 'PERFECT' ? 300 : quality === 'GOOD' ? 150 : 50;
+  stats[quality.toLowerCase()]++;
+  combo++; if (combo > maxCombo) maxCombo = combo;
+  calcMult(); score += pts * mult;
+  $score.textContent = String(score).padStart(6,'0');
+  $combo.textContent = combo;
+  $mult.textContent  = `×${mult}`;
+  flash(quality, quality==='PERFECT'?'#00e5ff':quality==='GOOD'?'#44ff88':'#ffaa00');
+  burstParticles(laneX, LANE_COLORS[lane]);
+}
+
+function onMiss() {
+  stats.miss++; combo = 0; mult = 1;
+  flash('MISS', '#ff0033');
+  $combo.textContent = '0';
+  $mult.textContent  = '×1';
+}
+
+// ── Input ──
+const keyMap = { a:0, s:1, d:2, f:3 };
+
+function pressLane(lane) {
+  if (state !== 'PLAYING') return;
+  const t = songTime();
+  BTN_MATS[lane].opacity = 0.55;
+  lBtns[lane].style.background  = LANE_COLORS_CSS[lane] + '44';
+  lBtns[lane].style.boxShadow   = `0 0 40px ${LANE_COLORS_CSS[lane]}cc,inset 0 0 20px ${LANE_COLORS_CSS[lane]}44`;
+  setTimeout(() => {
+    BTN_MATS[lane].opacity = 0.12;
+    lBtns[lane].style.background = '';
+    lBtns[lane].style.boxShadow  = '';
+  }, 110);
+
+  let best = null, bestDiff = Infinity;
+  for (const p of pool) {
+    if (!p.active || !p.noteRef) continue;
+    const n = p.noteRef;
+    if (n.lane !== lane || n.hit || n.missed) continue;
+    const diff = Math.abs(t - n.time);
+    if (diff < bestDiff) { bestDiff = diff; best = { p, note:n }; }
+  }
+  if (!best || bestDiff > WINDOWS.ok + 0.02) return;
+
+  const { p, note } = best;
+  note.hit = true; p.active = false; p.mesh.visible = false; p.noteRef = null;
+  if (bestDiff <= WINDOWS.perfect)   onHit('PERFECT', LANE_X[lane], lane);
+  else if (bestDiff <= WINDOWS.good) onHit('GOOD',    LANE_X[lane], lane);
+  else                               onHit('OK',      LANE_X[lane], lane);
+}
+
+window.addEventListener('keydown', e => {
+  if (e.repeat) return;
+  if (state === 'SELECT') {
+    if (e.key === 'ArrowLeft')  { selectedIdx=(selectedIdx-1+SONG_LIBRARY.length)%SONG_LIBRARY.length; renderCarousel(); }
+    if (e.key === 'ArrowRight') { selectedIdx=(selectedIdx+1)%SONG_LIBRARY.length; renderCarousel(); }
+    if (e.key === 'Enter') confirmSong();
+    return;
+  }
+  const l = keyMap[e.key.toLowerCase()];
+  if (l !== undefined) pressLane(l);
+});
+
+// Touch swipe on song select
+let touchStartX = 0;
+document.getElementById('carousel-wrap').addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, { passive:true });
+document.getElementById('carousel-wrap').addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  if (Math.abs(dx) > 40) {
+    selectedIdx = dx < 0
+      ? (selectedIdx+1) % SONG_LIBRARY.length
+      : (selectedIdx-1+SONG_LIBRARY.length) % SONG_LIBRARY.length;
+    renderCarousel();
+  }
+}, { passive:true });
+
+// ── Start / End ──
+function startGame() {
+  if (!activeSong) return;
+  currentBPM = detectedBPM || activeSong.bpmHint;
+  const offset = detectedOffset !== null ? detectedOffset : activeSong.offsetHint;
+
+  // Build chart — use hand-authored if provided, else auto-generate
+  const rawChart = activeSong.chart
+    ? activeSong.chart.map(([t, lane]) => ({ time:t, lane, hit:false, spawned:false, missed:false }))
+    : buildChart(currentBPM, offset, activeSong.difficulty, activeSong.duration);
+
+  score = 0; combo = 0; maxCombo = 0; mult = 1;
+  stats = { perfect:0, good:0, ok:0, miss:0 };
+  noteIdx = 0;
+  liveChart = rawChart;
+
+  pool.forEach(p => { p.active=false; p.mesh.visible=false; p.noteRef=null; });
+  particles.forEach(p => { p.active=false; p.mesh.visible=false; });
+
+  $score.textContent = '000000'; $combo.textContent = '0';
+  $mult.textContent  = '×1';    $judge.style.opacity = '0';
+  $progress.style.width = '0%';
+
+  document.getElementById('song-title-hud').textContent  = activeSong.title;
+  document.getElementById('song-artist-hud').textContent = activeSong.artist;
+  document.getElementById('song-bpm-hud').textContent    = `${currentBPM} BPM`;
+  document.getElementById('bpm-badge').textContent       = `${currentBPM} BPM`;
+
+  document.getElementById('result-screen').style.display = 'none';
+  state = 'PLAYING';
+  playSong();
+}
+
+function endGame() {
+  state = 'RESULT';
+  const total = stats.perfect + stats.good + stats.ok + stats.miss;
+  const acc   = total > 0 ? (stats.perfect + stats.good*0.67 + stats.ok*0.33) / total : 0;
+  const grade = acc>=0.95?'S':acc>=0.85?'A':acc>=0.70?'B':acc>=0.50?'C':'D';
+
+  document.getElementById('result-screen').style.display = 'flex';
+  document.getElementById('result-title').textContent    = score > 50000 ? 'STAGE CLEAR' : 'TRY AGAIN';
+  document.getElementById('result-grade').textContent    = grade;
+  document.getElementById('result-bpm').textContent      = `${activeSong?.title} · ${currentBPM} BPM`;
+  document.getElementById('r-score').textContent   = String(score).padStart(6,'0');
+  document.getElementById('r-combo').textContent   = maxCombo;
+  document.getElementById('r-perfect').textContent = stats.perfect;
+  document.getElementById('r-good').textContent    = stats.good;
+  document.getElementById('r-miss').textContent    = stats.miss;
+}
+
+document.getElementById('retry-btn').addEventListener('click', () => {
+  stopSong();
+  startGame();
+});
+document.getElementById('back-btn').addEventListener('click', () => {
+  stopSong();
+  audioBuf = null;
+  detectedBPM = null; detectedOffset = null;
+  showSelectScreen();
+});
+
+lBtns.forEach((btn, i) => {
+  btn.addEventListener('touchstart', e => { e.preventDefault(); pressLane(i); }, { passive:false });
+  btn.addEventListener('mousedown',  () => pressLane(i));
+});
+
+// ═══════════════════════════════════════════════════════
+//  MAIN LOOP
+// ═══════════════════════════════════════════════════════
+let prevNow  = performance.now();
+let gridOff  = 0;
+let camSwayT = 0;
+
+function update(dt) {
+  const st = songTime();
+
+  if (judgeTimer > 0) {
+    judgeTimer -= dt;
+    $judge.style.opacity = String(Math.max(0, Math.min(1, judgeTimer / 0.25)));
+    if (judgeTimer <= 0) $judge.style.opacity = '0';
+  }
+
+  if (state !== 'PLAYING') return;
+
+  $progress.style.width = `${Math.min(100,(st / (activeSong?.duration||200))*100)}%`;
+
+  while (noteIdx < liveChart.length && st >= liveChart[noteIdx].time - LOOKAHEAD) {
+    const note = liveChart[noteIdx];
+    const slot = poolGet();
+    if (slot) {
+      slot.active = true; slot.noteRef = note; note.spawned = true;
+      slot.mesh.visible = true;
+      slot.mesh.position.set(LANE_X[note.lane], NOTE_Y, SPAWN_Z);
+      const col = LANE_COLORS[note.lane];
+      slot.mat.color.setHex(col); slot.edgeMat.color.setHex(col);
+    }
+    noteIdx++;
+  }
+
+  for (const p of pool) {
+    if (!p.active || !p.noteRef) continue;
+    const note = p.noteRef;
+    p.mesh.position.z = HIT_Z - (note.time - st) * SPEED;
+    if (!note.hit && !note.missed && (st - note.time) > MISS_GRACE) {
+      note.missed = true; onMiss();
+      p.active = false; p.mesh.visible = false; p.noteRef = null; continue;
+    }
+    if (p.mesh.position.z < SPAWN_Z - 3) {
+      p.active = false; p.mesh.visible = false; p.noteRef = null;
+    }
+  }
+
+  for (const p of particles) {
+    if (!p.active) continue;
+    p.life -= dt * 2.2;
+    if (p.life <= 0) { p.active = false; p.mesh.visible = false; continue; }
+    p.mesh.position.x += p.vx; p.mesh.position.y += p.vy; p.mesh.position.z += p.vz;
+    p.vy -= 0.004;
+    p.mesh.material.opacity = p.life * p.life;
+    p.mesh.lookAt(camera.position);
+  }
+
+  gridOff = (gridOff + dt * SPEED) % TRAVEL;
+  hLines.forEach((l, i) => { l.position.z = SPAWN_Z + (i * H_SPACING + gridOff) % TRAVEL; });
+  stripMesh.material.opacity = 0.45 + Math.sin(st * 12) * 0.1;
+  camSwayT += dt;
+  camera.position.x = Math.sin(camSwayT * 0.18) * 0.12;
+  camera.position.y = 5.8 + Math.sin(camSwayT * 0.27) * 0.08;
+  camera.lookAt(0, 0, -5);
+}
+
+function loop() {
+  requestAnimationFrame(loop);
+  const now = performance.now();
+  const dt  = Math.min((now - prevNow) / 1000, 0.05);
+  prevNow   = now;
+  update(dt);
+  renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+loop();
+</script>
+</body>
+</html>
