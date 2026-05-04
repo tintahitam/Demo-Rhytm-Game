@@ -1,0 +1,1 @@
+details for each song like bpm, artist name, difficulity, etc
